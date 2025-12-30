@@ -5,146 +5,228 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Airport Code Explorer</title>
   
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     
     body {
-      font-family: Arial, sans-serif;
-      background: #0f172a;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
       color: white;
-    }
-    
-    #loading {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: #0f172a;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-direction: column;
-      z-index: 9999;
-    }
-    
-    #loading h1 {
-      color: white;
-      margin-bottom: 20px;
-    }
-    
-    .spinner {
-      width: 50px;
-      height: 50px;
-      border: 5px solid #334155;
-      border-top-color: #60a5fa;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-    }
-    
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-    
-    #app {
-      display: none;
-    }
-    
-    #app.ready {
-      display: block;
+      overflow: hidden;
+      height: 100vh;
     }
     
     #header {
-      background: #1e293b;
+      background: rgba(30, 41, 59, 0.95);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid #334155;
       padding: 20px;
-      border-bottom: 2px solid #334155;
+      position: relative;
+      z-index: 100;
     }
     
-    #header h1 {
-      font-size: 24px;
+    .header-content {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    
+    .title-row {
+      display: flex;
+      align-items: center;
+      gap: 15px;
       margin-bottom: 15px;
     }
     
-    #controls {
+    h1 {
+      font-size: 28px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #60a5fa, #3b82f6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    .plane-icon {
+      font-size: 32px;
+    }
+    
+    .controls {
       display: flex;
-      gap: 10px;
+      gap: 12px;
       flex-wrap: wrap;
     }
     
     input, select, button {
-      padding: 10px 15px;
+      padding: 12px 18px;
       background: #334155;
       border: 1px solid #475569;
-      border-radius: 8px;
+      border-radius: 10px;
       color: white;
       font-size: 14px;
+      transition: all 0.2s;
     }
     
     input {
       flex: 1;
-      min-width: 200px;
+      min-width: 250px;
+    }
+    
+    input:focus, select:focus, button:focus {
+      outline: none;
+      border-color: #60a5fa;
+      box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1);
     }
     
     button {
       cursor: pointer;
+      font-weight: 600;
     }
     
     button:hover {
       background: #475569;
+      transform: translateY(-1px);
     }
     
-    #map {
+    #map-container {
+      position: relative;
+      height: calc(100vh - 140px);
+      background: #1e293b;
+      overflow: hidden;
+    }
+    
+    #world-map {
       width: 100%;
-      height: calc(100vh - 120px);
+      height: 100%;
+      background: radial-gradient(ellipse at center, #1e3a5f 0%, #0f172a 100%);
+      position: relative;
+    }
+    
+    .airport-marker {
+      position: absolute;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      border: 3px solid white;
+      cursor: pointer;
+      transition: all 0.3s;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: bold;
+    }
+    
+    .airport-marker:hover {
+      transform: scale(1.3);
+      z-index: 10;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+    }
+    
+    .airport-marker.selected {
+      width: 32px;
+      height: 32px;
+      z-index: 11;
+      animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(96, 165, 250, 0.7); }
+      50% { box-shadow: 0 0 0 15px rgba(96, 165, 250, 0); }
+    }
+    
+    .connection-line {
+      position: absolute;
+      height: 2px;
+      background: rgba(96, 165, 250, 0.3);
+      transform-origin: left center;
+      pointer-events: none;
+    }
+    
+    .tooltip {
+      position: absolute;
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid #475569;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 13px;
+      pointer-events: none;
+      z-index: 1000;
+      white-space: nowrap;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
     }
     
     .info-card {
       position: absolute;
       top: 20px;
       right: 20px;
-      background: #1e293b;
-      border: 2px solid #3b82f6;
-      border-radius: 12px;
-      padding: 20px;
+      background: rgba(30, 41, 59, 0.98);
+      backdrop-filter: blur(10px);
+      border-radius: 16px;
+      padding: 24px;
       max-width: 320px;
       z-index: 1000;
-      box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+      border: 2px solid;
+      animation: slideIn 0.3s ease-out;
+    }
+    
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateX(20px); }
+      to { opacity: 1; transform: translateX(0); }
     }
     
     .info-card h2 {
-      color: #3b82f6;
-      font-size: 32px;
+      font-size: 36px;
       margin-bottom: 5px;
+      font-weight: 800;
     }
     
-    .info-card .label {
+    .info-card .subtitle {
       color: #94a3b8;
       font-size: 12px;
-      margin-top: 12px;
+      margin-bottom: 20px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    
+    .info-row {
+      margin-bottom: 16px;
+    }
+    
+    .info-label {
+      color: #94a3b8;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
       margin-bottom: 4px;
     }
     
-    .info-card .value {
-      font-size: 14px;
+    .info-value {
+      font-size: 15px;
+      font-weight: 500;
     }
     
     .close-btn {
       position: absolute;
-      top: 15px;
-      right: 15px;
+      top: 18px;
+      right: 18px;
       background: none;
       border: none;
       color: #94a3b8;
-      font-size: 24px;
+      font-size: 28px;
       cursor: pointer;
-      padding: 0;
-      width: 30px;
-      height: 30px;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+      transition: all 0.2s;
     }
     
     .close-btn:hover {
+      background: rgba(255,255,255,0.1);
       color: white;
     }
     
@@ -152,60 +234,63 @@
       position: absolute;
       bottom: 20px;
       left: 20px;
-      background: #1e293b;
+      background: rgba(30, 41, 59, 0.95);
+      backdrop-filter: blur(10px);
       border-radius: 12px;
-      padding: 15px;
-      z-index: 1000;
-      font-size: 14px;
+      padding: 18px;
+      z-index: 100;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
     }
     
     .legend-title {
-      font-weight: bold;
-      margin-bottom: 10px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      font-size: 14px;
     }
     
     .legend-item {
       display: flex;
       align-items: center;
-      gap: 8px;
-      margin-top: 8px;
+      gap: 10px;
+      margin-top: 10px;
+      font-size: 13px;
     }
     
     .legend-dot {
-      width: 12px;
-      height: 12px;
+      width: 14px;
+      height: 14px;
       border-radius: 50%;
+      border: 2px solid white;
     }
   </style>
 </head>
 <body>
-  <!-- Loading Screen -->
-  <div id="loading">
-    <h1>🛫 Airport Code Explorer</h1>
-    <div class="spinner"></div>
-    <p style="margin-top: 20px;">Loading map data...</p>
-  </div>
-
-  <!-- Main App -->
-  <div id="app">
-    <div id="header">
-      <h1>✈️ Airport Code Explorer</h1>
-      <div id="controls">
-        <input type="text" id="search" placeholder="Search airports...">
+  <div id="header">
+    <div class="header-content">
+      <div class="title-row">
+        <span class="plane-icon">✈️</span>
+        <h1>Airport Code Explorer</h1>
+      </div>
+      <div class="controls">
+        <input type="text" id="search" placeholder="Search airports by code, city, or country...">
         <select id="region">
           <option value="all">All Regions</option>
-          <option value="americas">Americas</option>
-          <option value="europe">Europe</option>
-          <option value="asia">Asia</option>
-          <option value="africa">Africa</option>
-          <option value="oceania">Oceania</option>
+          <option value="americas">🟠 Americas</option>
+          <option value="europe">🟢 Europe</option>
+          <option value="asia">🩷 Asia</option>
+          <option value="africa">🟡 Africa</option>
+          <option value="oceania">🟣 Oceania</option>
         </select>
-        <button id="styleBtn">Change Map Style</button>
+        <button id="resetBtn">Reset View</button>
       </div>
     </div>
-    <div id="map"></div>
+  </div>
+  
+  <div id="map-container">
+    <div id="world-map"></div>
+    
     <div class="legend">
-      <div class="legend-title">Airport Legend</div>
+      <div class="legend-title">🌍 Airport Regions</div>
       <div class="legend-item">
         <div class="legend-dot" style="background: #f97316;"></div>
         <span>Americas</span>
@@ -229,26 +314,44 @@
     </div>
   </div>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  
   <script>
-    console.log('Script starting...');
-    
     const airports = [
-      { code: 'JFK', name: 'John F. Kennedy', city: 'New York', country: 'USA', lat: 40.6413, lng: -73.7781, region: 'americas' },
-      { code: 'LAX', name: 'Los Angeles Intl', city: 'Los Angeles', country: 'USA', lat: 33.9416, lng: -118.4085, region: 'americas' },
+      { code: 'JFK', name: 'John F. Kennedy International', city: 'New York', country: 'USA', lat: 40.6413, lng: -73.7781, region: 'americas' },
+      { code: 'LAX', name: 'Los Angeles International', city: 'Los Angeles', country: 'USA', lat: 33.9416, lng: -118.4085, region: 'americas' },
+      { code: 'ORD', name: "O'Hare International", city: 'Chicago', country: 'USA', lat: 41.9742, lng: -87.9073, region: 'americas' },
+      { code: 'DFW', name: 'Dallas/Fort Worth', city: 'Dallas', country: 'USA', lat: 32.8998, lng: -97.0403, region: 'americas' },
+      { code: 'SFO', name: 'San Francisco International', city: 'San Francisco', country: 'USA', lat: 37.6213, lng: -122.3790, region: 'americas' },
+      { code: 'MIA', name: 'Miami International', city: 'Miami', country: 'USA', lat: 25.7959, lng: -80.2870, region: 'americas' },
+      { code: 'YYZ', name: 'Toronto Pearson', city: 'Toronto', country: 'Canada', lat: 43.6777, lng: -79.6248, region: 'americas' },
+      { code: 'MEX', name: 'Mexico City International', city: 'Mexico City', country: 'Mexico', lat: 19.4363, lng: -99.0721, region: 'americas' },
+      { code: 'GRU', name: 'São Paulo-Guarulhos', city: 'São Paulo', country: 'Brazil', lat: -23.4356, lng: -46.4731, region: 'americas' },
+      { code: 'BOG', name: 'El Dorado International', city: 'Bogotá', country: 'Colombia', lat: 4.7016, lng: -74.1469, region: 'americas' },
       { code: 'LHR', name: 'London Heathrow', city: 'London', country: 'UK', lat: 51.4700, lng: -0.4543, region: 'europe' },
       { code: 'CDG', name: 'Charles de Gaulle', city: 'Paris', country: 'France', lat: 49.0097, lng: 2.5479, region: 'europe' },
+      { code: 'AMS', name: 'Amsterdam Schiphol', city: 'Amsterdam', country: 'Netherlands', lat: 52.3105, lng: 4.7683, region: 'europe' },
+      { code: 'FRA', name: 'Frankfurt Airport', city: 'Frankfurt', country: 'Germany', lat: 50.0379, lng: 8.5622, region: 'europe' },
+      { code: 'MAD', name: 'Madrid-Barajas', city: 'Madrid', country: 'Spain', lat: 40.4983, lng: -3.5676, region: 'europe' },
+      { code: 'BCN', name: 'Barcelona-El Prat', city: 'Barcelona', country: 'Spain', lat: 41.2974, lng: 2.0833, region: 'europe' },
+      { code: 'IST', name: 'Istanbul Airport', city: 'Istanbul', country: 'Turkey', lat: 41.2753, lng: 28.7519, region: 'europe' },
+      { code: 'FCO', name: 'Rome Fiumicino', city: 'Rome', country: 'Italy', lat: 41.8003, lng: 12.2389, region: 'europe' },
       { code: 'DXB', name: 'Dubai International', city: 'Dubai', country: 'UAE', lat: 25.2532, lng: 55.3657, region: 'asia' },
-      { code: 'NRT', name: 'Narita', city: 'Tokyo', country: 'Japan', lat: 35.7720, lng: 140.3929, region: 'asia' },
-      { code: 'SYD', name: 'Sydney Airport', city: 'Sydney', country: 'Australia', lat: -33.9399, lng: 151.1753, region: 'oceania' },
+      { code: 'DOH', name: 'Hamad International', city: 'Doha', country: 'Qatar', lat: 25.2731, lng: 51.6080, region: 'asia' },
+      { code: 'HND', name: 'Tokyo Haneda', city: 'Tokyo', country: 'Japan', lat: 35.5494, lng: 139.7798, region: 'asia' },
+      { code: 'NRT', name: 'Narita International', city: 'Tokyo', country: 'Japan', lat: 35.7720, lng: 140.3929, region: 'asia' },
+      { code: 'PEK', name: 'Beijing Capital', city: 'Beijing', country: 'China', lat: 40.0799, lng: 116.6031, region: 'asia' },
+      { code: 'PVG', name: 'Shanghai Pudong', city: 'Shanghai', country: 'China', lat: 31.1443, lng: 121.8083, region: 'asia' },
+      { code: 'ICN', name: 'Incheon International', city: 'Seoul', country: 'South Korea', lat: 37.4602, lng: 126.4407, region: 'asia' },
       { code: 'SIN', name: 'Singapore Changi', city: 'Singapore', country: 'Singapore', lat: 1.3644, lng: 103.9915, region: 'asia' },
-      { code: 'HKG', name: 'Hong Kong Intl', city: 'Hong Kong', country: 'China', lat: 22.3080, lng: 113.9185, region: 'asia' },
-      { code: 'FRA', name: 'Frankfurt', city: 'Frankfurt', country: 'Germany', lat: 50.0379, lng: 8.5622, region: 'europe' },
-      { code: 'ORD', name: "O'Hare", city: 'Chicago', country: 'USA', lat: 41.9742, lng: -87.9073, region: 'americas' },
-      { code: 'GRU', name: 'São Paulo', city: 'São Paulo', country: 'Brazil', lat: -23.4356, lng: -46.4731, region: 'americas' },
-      { code: 'JNB', name: 'Johannesburg', city: 'Johannesburg', country: 'South Africa', lat: -26.1392, lng: 28.2460, region: 'africa' },
-      { code: 'CAI', name: 'Cairo', city: 'Cairo', country: 'Egypt', lat: 30.1219, lng: 31.4056, region: 'africa' },
+      { code: 'HKG', name: 'Hong Kong International', city: 'Hong Kong', country: 'China', lat: 22.3080, lng: 113.9185, region: 'asia' },
+      { code: 'BKK', name: 'Suvarnabhumi', city: 'Bangkok', country: 'Thailand', lat: 13.6900, lng: 100.7501, region: 'asia' },
+      { code: 'DEL', name: 'Indira Gandhi International', city: 'New Delhi', country: 'India', lat: 28.5562, lng: 77.1000, region: 'asia' },
+      { code: 'BOM', name: 'Chhatrapati Shivaji', city: 'Mumbai', country: 'India', lat: 19.0896, lng: 72.8656, region: 'asia' },
+      { code: 'JNB', name: 'O.R. Tambo International', city: 'Johannesburg', country: 'South Africa', lat: -26.1392, lng: 28.2460, region: 'africa' },
+      { code: 'CAI', name: 'Cairo International', city: 'Cairo', country: 'Egypt', lat: 30.1219, lng: 31.4056, region: 'africa' },
+      { code: 'CPT', name: 'Cape Town International', city: 'Cape Town', country: 'South Africa', lat: -33.9715, lng: 18.6021, region: 'africa' },
+      { code: 'SYD', name: 'Sydney Kingsford Smith', city: 'Sydney', country: 'Australia', lat: -33.9399, lng: 151.1753, region: 'oceania' },
+      { code: 'MEL', name: 'Melbourne Airport', city: 'Melbourne', country: 'Australia', lat: -37.6690, lng: 144.8410, region: 'oceania' },
+      { code: 'AKL', name: 'Auckland Airport', city: 'Auckland', country: 'New Zealand', lat: -37.0082, lng: 174.7850, region: 'oceania' },
     ];
 
     const colors = {
@@ -259,134 +362,190 @@
       oceania: '#8b5cf6'
     };
 
-    let map, markers = [], filter = 'all', style = 'streets', selected = null;
+    let selectedAirport = null;
+    let currentFilter = 'all';
+    let tooltip = null;
 
-    function init() {
-      console.log('Initializing...');
+    function latLngToXY(lat, lng) {
+      const mapContainer = document.getElementById('world-map');
+      const width = mapContainer.offsetWidth;
+      const height = mapContainer.offsetHeight;
       
-      // Hide loading, show app
-      document.getElementById('loading').style.display = 'none';
-      document.getElementById('app').classList.add('ready');
+      const x = ((lng + 180) / 360) * width;
+      const y = ((90 - lat) / 180) * height;
       
-      // Create map
-      map = L.map('map').setView([20, 0], 2);
-      console.log('Map created');
-      
-      updateStyle();
-      renderMarkers();
-      
-      // Event listeners
-      document.getElementById('search').addEventListener('input', renderMarkers);
-      document.getElementById('region').addEventListener('change', (e) => {
-        filter = e.target.value;
-        renderMarkers();
-      });
-      document.getElementById('styleBtn').addEventListener('click', () => {
-        style = style === 'streets' ? 'dark' : style === 'dark' ? 'satellite' : 'streets';
-        updateStyle();
-      });
-      
-      console.log('App ready!');
+      return { x, y };
     }
 
-    function updateStyle() {
-      if (map.tileLayer) map.removeLayer(map.tileLayer);
+    function createMarker(airport) {
+      const { x, y } = latLngToXY(airport.lat, airport.lng);
+      const color = colors[airport.region];
       
-      const urls = {
-        streets: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-        dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-        satellite: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
-      };
+      const marker = document.createElement('div');
+      marker.className = 'airport-marker';
+      marker.style.left = `${x}px`;
+      marker.style.top = `${y}px`;
+      marker.style.background = color;
+      marker.dataset.code = airport.code;
       
-      map.tileLayer = L.tileLayer(urls[style], { maxZoom: 19 }).addTo(map);
+      marker.addEventListener('mouseenter', (e) => {
+        showTooltip(e, airport);
+      });
+      
+      marker.addEventListener('mouseleave', hideTooltip);
+      
+      marker.addEventListener('click', () => {
+        selectAirport(airport);
+      });
+      
+      return marker;
     }
 
-    function renderMarkers() {
-      markers.forEach(m => map.removeLayer(m));
-      markers = [];
+    function showTooltip(e, airport) {
+      hideTooltip();
       
-      const search = document.getElementById('search').value.toLowerCase();
-      const filtered = airports.filter(a => {
-        const matchSearch = a.code.toLowerCase().includes(search) ||
-                           a.city.toLowerCase().includes(search) ||
-                           a.country.toLowerCase().includes(search);
-        const matchRegion = filter === 'all' || a.region === filter;
-        return matchSearch && matchRegion;
-      });
+      tooltip = document.createElement('div');
+      tooltip.className = 'tooltip';
+      tooltip.innerHTML = `<strong>${airport.code}</strong><br>${airport.city}`;
+      tooltip.style.left = `${e.pageX + 10}px`;
+      tooltip.style.top = `${e.pageY - 40}px`;
       
-      filtered.forEach(airport => {
-        const color = colors[airport.region];
-        const icon = L.divIcon({
-          html: `<div style="width:20px;height:20px;background:${color};border:3px solid white;border-radius:50%;box-shadow:0 2px 8px rgba(0,0,0,0.3);"></div>`,
-          className: '',
-          iconSize: [20, 20],
-          iconAnchor: [10, 10]
-        });
-        
-        const marker = L.marker([airport.lat, airport.lng], { icon })
-          .bindTooltip(`<b>${airport.code}</b><br>${airport.city}`)
-          .on('click', () => showInfo(airport))
-          .addTo(map);
-        
-        markers.push(marker);
-      });
-      
-      if (selected) {
-        filtered.forEach(a => {
-          if (a.code !== selected.code) {
-            const line = L.polyline(
-              [[selected.lat, selected.lng], [a.lat, a.lng]],
-              { color: colors[selected.region], weight: 2, opacity: 0.4, dashArray: '5,10' }
-            ).addTo(map);
-            markers.push(line);
-          }
-        });
+      document.body.appendChild(tooltip);
+    }
+
+    function hideTooltip() {
+      if (tooltip) {
+        tooltip.remove();
+        tooltip = null;
       }
     }
 
-    function showInfo(airport) {
-      selected = airport;
+    function selectAirport(airport) {
+      selectedAirport = airport;
+      renderMarkers();
+      showInfoCard(airport);
+    }
+
+    function showInfoCard(airport) {
+      const existing = document.querySelector('.info-card');
+      if (existing) existing.remove();
       
-      const old = document.querySelector('.info-card');
-      if (old) old.remove();
+      const color = colors[airport.region];
       
       const card = document.createElement('div');
       card.className = 'info-card';
+      card.style.borderColor = color;
       card.innerHTML = `
         <button class="close-btn">×</button>
-        <h2>${airport.code}</h2>
-        <div style="color:#94a3b8;font-size:12px;margin-bottom:15px;">Airport Code</div>
-        <div class="label">Name</div>
-        <div class="value">${airport.name}</div>
-        <div class="label">City</div>
-        <div class="value">${airport.city}</div>
-        <div class="label">Country</div>
-        <div class="value">${airport.country}</div>
-        <div class="label">Region</div>
-        <div class="value" style="text-transform:capitalize;">${airport.region}</div>
+        <h2 style="color: ${color};">${airport.code}</h2>
+        <div class="subtitle">Airport Code</div>
+        <div class="info-row">
+          <div class="info-label">Airport Name</div>
+          <div class="info-value">${airport.name}</div>
+        </div>
+        <div class="info-row">
+          <div class="info-label">City</div>
+          <div class="info-value">${airport.city}</div>
+        </div>
+        <div class="info-row">
+          <div class="info-label">Country</div>
+          <div class="info-value">${airport.country}</div>
+        </div>
+        <div class="info-row">
+          <div class="info-label">Region</div>
+          <div class="info-value" style="text-transform: capitalize;">${airport.region}</div>
+        </div>
+        <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid #334155; font-size: 12px; color: #94a3b8; font-style: italic;">
+          💡 Click another airport to see connections
+        </div>
       `;
       
       document.body.appendChild(card);
-      card.querySelector('.close-btn').onclick = () => {
-        card.remove();
-        selected = null;
-        renderMarkers();
-      };
       
-      renderMarkers();
+      card.querySelector('.close-btn').addEventListener('click', () => {
+        card.remove();
+        selectedAirport = null;
+        renderMarkers();
+      });
     }
 
-    // Start when Leaflet is ready
-    window.addEventListener('load', () => {
-      console.log('Window loaded');
-      if (typeof L !== 'undefined') {
-        console.log('Leaflet found');
-        setTimeout(init, 100);
-      } else {
-        console.error('Leaflet not loaded!');
-        document.getElementById('loading').innerHTML = '<h1>Error: Map library failed to load</h1><p>Please refresh the page</p>';
+    function drawConnectionLine(from, to) {
+      const fromPos = latLngToXY(from.lat, from.lng);
+      const toPos = latLngToXY(to.lat, to.lng);
+      
+      const dx = toPos.x - fromPos.x;
+      const dy = toPos.y - fromPos.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+      
+      const line = document.createElement('div');
+      line.className = 'connection-line';
+      line.style.left = `${fromPos.x}px`;
+      line.style.top = `${fromPos.y}px`;
+      line.style.width = `${distance}px`;
+      line.style.transform = `rotate(${angle}deg)`;
+      line.style.background = colors[from.region];
+      
+      return line;
+    }
+
+    function renderMarkers() {
+      const map = document.getElementById('world-map');
+      map.innerHTML = '';
+      
+      const searchTerm = document.getElementById('search').value.toLowerCase();
+      
+      const filtered = airports.filter(a => {
+        const matchesSearch = a.code.toLowerCase().includes(searchTerm) ||
+                             a.city.toLowerCase().includes(searchTerm) ||
+                             a.name.toLowerCase().includes(searchTerm) ||
+                             a.country.toLowerCase().includes(searchTerm);
+        const matchesRegion = currentFilter === 'all' || a.region === currentFilter;
+        return matchesSearch && matchesRegion;
+      });
+      
+      // Draw connection lines first (so they're behind markers)
+      if (selectedAirport) {
+        filtered.forEach(airport => {
+          if (airport.code !== selectedAirport.code) {
+            map.appendChild(drawConnectionLine(selectedAirport, airport));
+          }
+        });
       }
+      
+      // Draw markers
+      filtered.forEach(airport => {
+        const marker = createMarker(airport);
+        if (selectedAirport && airport.code === selectedAirport.code) {
+          marker.classList.add('selected');
+        }
+        map.appendChild(marker);
+      });
+    }
+
+    // Event listeners
+    document.getElementById('search').addEventListener('input', renderMarkers);
+    
+    document.getElementById('region').addEventListener('change', (e) => {
+      currentFilter = e.target.value;
+      renderMarkers();
     });
+    
+    document.getElementById('resetBtn').addEventListener('click', () => {
+      document.getElementById('search').value = '';
+      document.getElementById('region').value = 'all';
+      currentFilter = 'all';
+      selectedAirport = null;
+      const card = document.querySelector('.info-card');
+      if (card) card.remove();
+      renderMarkers();
+    });
+    
+    // Initial render
+    renderMarkers();
+    
+    // Re-render on window resize
+    window.addEventListener('resize', renderMarkers);
   </script>
 </body>
 </html>
